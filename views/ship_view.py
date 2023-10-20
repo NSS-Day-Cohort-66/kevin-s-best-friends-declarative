@@ -3,8 +3,8 @@ import json
 from nss_handler import status
 from repository import db_get_single, db_get_all, db_delete, db_update, db_create
 
-class ShippingShipsView():
 
+class ShippingShipsView:
     def get(self, handler, pk):
         if pk != 0:
             sql = "SELECT s.id, s.name, s.hauler_id FROM Ship s WHERE s.id = ?"
@@ -13,7 +13,6 @@ class ShippingShipsView():
 
             return handler.response(serialized_hauler, status.HTTP_200_SUCCESS.value)
         else:
-
             sql = "SELECT s.id, s.name, s.hauler_id FROM Ship s"
             query_results = db_get_all(sql)
             haulers = [dict(row) for row in query_results]
@@ -27,7 +26,9 @@ class ShippingShipsView():
         if number_of_rows_deleted > 0:
             return handler.response("", status.HTTP_204_SUCCESS_NO_RESPONSE_BODY.value)
         else:
-            return handler.response("", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value)
+            return handler.response(
+                "", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value
+            )
 
     def update(self, handler, ship_data, pk):
         sql = """
@@ -38,11 +39,26 @@ class ShippingShipsView():
         WHERE id = ?
         """
         number_of_rows_updated = db_update(
-            sql,
-            (ship_data['name'], ship_data['hauler_id'], pk)
+            sql, (ship_data["name"], ship_data["hauler_id"], pk)
         )
 
         if number_of_rows_updated > 0:
             return handler.response("", status.HTTP_204_SUCCESS_NO_RESPONSE_BODY.value)
         else:
-            return handler.response("", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value)
+            return handler.response(
+                "", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value
+            )
+
+    def create(self, handler, ship_data):
+        sql = """
+        INSERT INTO Ship
+        (name, hauler_id) VALUES (?,?)"""
+        posted_ship = db_create(
+            sql,
+            (ship_data["name"], ship_data["hauler_id"]),
+        )
+
+        if posted_ship:
+            return handler.response("", status.HTTP_201_SUCCESS_CREATED.value)
+        else:
+            return handler.response("", status.HTTP_201_SUCCESS_CREATED)

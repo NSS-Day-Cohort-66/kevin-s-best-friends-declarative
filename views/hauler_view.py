@@ -4,9 +4,10 @@ from repository import db_get_single, db_get_all, db_delete, db_update, db_creat
 
 
 class HaulerView:
-    def get(self, handler, pk, query_params):
+    def get(self, handler, pk):
+        url = handler.parse_url(handler.path)
         if pk != 0:
-            if "_expand" in query_params:
+            if "_expand" in url["query_params"]:
                 sql = """
                         SELECT
                         h.id, 
@@ -34,6 +35,37 @@ class HaulerView:
                 }
                 dictionary_version_of_object = dict(hauler)
                 serialized_hauler = json.dumps(dictionary_version_of_object)
+            elif "_embed" in url["query_params"]:
+                sql = """SELECT
+                        h.id, 
+                        h.name, 
+                        h.dock_id,
+                        s.id ship_id,
+						s.name shipName,
+						s.hauler_id hauler_id
+                        FROM Hauler h
+                        JOIN Ship s
+                        ON s.hauler_id = h.id
+                        WHERE h.id = ?
+                        """
+                query_results = db_get_all(sql, pk)
+                hauler_dict = {}
+                for row in query_results:
+                    individual_hauler_id = row["id"]
+                    if individual_hauler_id not in hauler_dict:
+                        hauler_dict[individual_hauler_id] = {
+                            "id": row["id"],
+                            "name": row["name"],
+                            "dock_id": row["dock_id"],
+                            "ships": [],
+                        }
+                    ship = {
+                        "id": row["ship_id"],
+                        "name": row["shipName"],
+                        "hauler_id": row["hauler_id"],
+                    }
+                    hauler_dict[individual_hauler_id]["ships"].append(ship)
+                    serialized_hauler = json.dumps(list(hauler_dict.values()))
             else:
                 sql = "SELECT h.id, h.name, h.dock_id FROM Hauler h WHERE h.id = ?"
                 query_results = db_get_single(sql, pk)
@@ -41,7 +73,7 @@ class HaulerView:
 
             return handler.response(serialized_hauler, status.HTTP_200_SUCCESS.value)
         else:
-            if "_expand" in query_params:
+            if "_expand" in url["query_params"]:
                 sql = """
                         SELECT
                         h.id, 
@@ -53,7 +85,7 @@ class HaulerView:
                         FROM Hauler h
                         JOIN Dock d
                         ON d.id = h.dock_id"""
-                query_results = db_get_all(sql)
+                query_results = db_get_all(sql, pk)
                 haulers = []
                 for row in query_results:
                     dock = {
@@ -68,12 +100,42 @@ class HaulerView:
                         "dock": dock,
                     }
                     haulers.append(hauler)
-
+                serialized_haulers = json.dumps(haulers)
+            elif "_embed" in url["query_params"]:
+                sql = """SELECT
+                        h.id, 
+                        h.name, 
+                        h.dock_id,
+                        s.id ship_id,
+						s.name shipName,
+						s.hauler_id hauler_id
+                        FROM Hauler h
+                        JOIN Ship s
+                        ON s.hauler_id = h.id
+                        """
+                query_results = db_get_all(sql, pk)
+                hauler_dict = {}
+                for row in query_results:
+                    individual_hauler_id = row["id"]
+                    if individual_hauler_id not in hauler_dict:
+                        hauler_dict[individual_hauler_id] = {
+                            "id": row["id"],
+                            "name": row["name"],
+                            "dock_id": row["dock_id"],
+                            "ships": [],
+                        }
+                    ship = {
+                        "id": row["ship_id"],
+                        "name": row["shipName"],
+                        "hauler_id": row["hauler_id"],
+                    }
+                    hauler_dict[individual_hauler_id]["ships"].append(ship)
+                    serialized_haulers = json.dumps(list(hauler_dict.values()))
             else:
                 sql = "SELECT h.id, h.name, h.dock_id FROM Hauler h"
-                query_results = db_get_all(sql)
+                query_results = db_get_all(sql, pk)
                 haulers = [dict(row) for row in query_results]
-            serialized_haulers = json.dumps(haulers)
+                serialized_haulers = json.dumps(haulers)
 
             return handler.response(serialized_haulers, status.HTTP_200_SUCCESS.value)
 
@@ -114,8 +176,14 @@ class HaulerView:
             sql,
             (hauler_data["name"], hauler_data["dock_id"]),
         )
+        hauler = {
+            "id": posted_hauler,
+            "name": hauler_data["name"],
+            "dock_id": hauler_data["dock_id"],
+        }
+        post_hauler = json.dumps(hauler)
 
         if posted_hauler:
-            return handler.response("", status.HTTP_201_SUCCESS_CREATED.value)
+            return handler.response(post_hauler, status.HTTP_201_SUCCESS_CREATED.value)
         else:
             return handler.response("", status.HTTP_201_SUCCESS_CREATED)

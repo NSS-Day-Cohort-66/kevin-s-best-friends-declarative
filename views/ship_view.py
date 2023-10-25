@@ -5,9 +5,10 @@ from repository import db_get_single, db_get_all, db_delete, db_update, db_creat
 
 
 class ShippingShipsView:
-    def get(self, handler, pk, query_params):
+    def get(self, handler, pk):
+        url = handler.parse_url(handler.path)
         if pk != 0:
-            if "_expand" in query_params:
+            if "_expand" in url["query_params"]:
                 sql = """ SELECT
                             s.id,
                             s.name,
@@ -40,7 +41,7 @@ class ShippingShipsView:
 
             return handler.response(serialized_hauler, status.HTTP_200_SUCCESS.value)
         else:
-            if "_expand" in query_params:
+            if "_expand" in url["query_params"]:
                 sql = """ SELECT
                             s.id,
                             s.name,
@@ -51,7 +52,7 @@ class ShippingShipsView:
                             FROM Ship s
                             JOIN Hauler h
                             ON h.id = s.hauler_id"""
-                query_results = db_get_all(sql)
+                query_results = db_get_all(sql, pk)
                 ships = []
                 for row in query_results:
                     hauler = {
@@ -69,7 +70,7 @@ class ShippingShipsView:
                     serialized_haulers = json.dumps(ships)
             else:
                 sql = "SELECT s.id, s.name, s.hauler_id FROM Ship s"
-                query_results = db_get_all(sql)
+                query_results = db_get_all(sql, pk)
                 haulers = [dict(row) for row in query_results]
                 serialized_haulers = json.dumps(haulers)
 
@@ -112,8 +113,14 @@ class ShippingShipsView:
             sql,
             (ship_data["name"], ship_data["hauler_id"]),
         )
+        ship = {
+            "id": posted_ship,
+            "name": ship_data["name"],
+            "hauler_id": ship_data["hauler_id"],
+        }
+        post_ship = json.dumps(ship)
 
         if posted_ship:
-            return handler.response("", status.HTTP_201_SUCCESS_CREATED.value)
+            return handler.response(post_ship, status.HTTP_201_SUCCESS_CREATED.value)
         else:
             return handler.response("", status.HTTP_201_SUCCESS_CREATED)
